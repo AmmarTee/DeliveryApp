@@ -22,7 +22,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: "lts/*", cache: "npm" }
+        with:
+          node-version: "lts/*"
+          cache: "npm"
+          cache-dependency-path: '**/package-lock.json'
       - name: API deps
         working-directory: packages/api
         run: npm ci
