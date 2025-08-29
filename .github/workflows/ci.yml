@@ -25,7 +25,9 @@ jobs:
         with:
           node-version: "lts/*"
           cache: "npm"
-          cache-dependency-path: '**/package-lock.json'
+          cache-dependency-path: |
+            packages/api/package-lock.json
+            packages/web/package-lock.json
       - name: API deps
         working-directory: packages/api
         run: npm ci
