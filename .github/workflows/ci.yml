@@ -1,0 +1,17 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate repo structure
+        run: |
+          test -f openapi/openapi.yaml
+          test -f db/schema.sql
+          echo "CI gates placeholder — add lint, unit, e2e later"
+

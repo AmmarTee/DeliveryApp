@@ -1,0 +1,8 @@
+[
+  {"name": "Basmati rice", "unit": "kg"},
+  {"name": "Atta (flour)", "unit": "kg", "synonyms": ["atta", "آٹا", "flour"]},
+  {"name": "Sugar", "unit": "kg"},
+  {"name": "Milk", "unit": "L"},
+  {"name": "Eggs", "unit": "dozen"}
+]
+

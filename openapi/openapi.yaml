@@ -1,0 +1,588 @@
+openapi: 3.0.3
+info:
+  title: Direct-to-Merchant Ordering API (MVP)
+  version: 0.2.0
+  description: |
+    Approval-free MVP API surface. WhatsApp deep-link auth, list-first quotes,
+    direct-to-merchant ordering, and rolling 90-day ratings.
+servers:
+  - url: https://api.example.com
+    description: Cloudflare-proxied production
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Auth
+  - name: Consumer
+  - name: Merchant
+  - name: Admin
+  - name: Ratings
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Id:
+      type: string
+      format: uuid
+    Timestamp:
+      type: string
+      format: date-time
+    User:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        phone: { type: string }
+        email: { type: string, nullable: true }
+        preferred_language: { type: string, enum: [en, ur] }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+    Address:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        user_id: { $ref: '#/components/schemas/Id' }
+        label: { type: string }
+        line1: { type: string }
+        line2: { type: string, nullable: true }
+        city: { type: string }
+        lat: { type: number }
+        lng: { type: number }
+        is_default: { type: boolean }
+    Merchant:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        phone: { type: string }
+        address: { type: string }
+        service_radius_km: { type: number }
+        status: { type: string, enum: [pending, approved, rejected, suspended] }
+        rating_90d: { type: number, minimum: 0, maximum: 5, nullable: true }
+    CatalogItem:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        merchant_id: { $ref: '#/components/schemas/Id' }
+        name: { type: string }
+        unit: { type: string, enum: [kg, g, L, mL, item, dozen] }
+        price_per_unit: { type: number }
+        in_stock: { type: boolean }
+    GroceryListItem:
+      type: object
+      properties:
+        name: { type: string }
+        qty: { type: number }
+        unit: { type: string, enum: [kg, g, L, mL, items, dozen] }
+        notes: { type: string, nullable: true }
+    GroceryList:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        title: { type: string }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/GroceryListItem' }
+        notes: { type: string, nullable: true }
+        created_by: { $ref: '#/components/schemas/Id' }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+    QuoteLine:
+      type: object
+      properties:
+        name: { type: string }
+        qty: { type: number }
+        unit: { type: string, enum: [kg, g, L, mL, items, dozen] }
+        price: { type: number }
+        substitution_of: { type: string, nullable: true }
+    Quote:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        list_id: { $ref: '#/components/schemas/Id' }
+        merchant_id: { $ref: '#/components/schemas/Id' }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/QuoteLine' }
+        delivery_fee: { type: number }
+        eta_minutes: { type: integer }
+        total: { type: number }
+        status: { type: string, enum: [pending, sent, accepted, declined, expired] }
+    Order:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        quote_id: { $ref: '#/components/schemas/Id' }
+        user_id: { $ref: '#/components/schemas/Id' }
+        merchant_id: { $ref: '#/components/schemas/Id' }
+        status: { type: string, enum: [preparing, out_for_delivery, delivered, cancelled] }
+        address_id: { $ref: '#/components/schemas/Id' }
+        total: { type: number }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+    Review:
+      type: object
+      properties:
+        id: { $ref: '#/components/schemas/Id' }
+        order_id: { $ref: '#/components/schemas/Id' }
+        merchant_id: { $ref: '#/components/schemas/Id' }
+        rating: { type: integer, minimum: 1, maximum: 5 }
+        tags:
+          type: array
+          items: { type: string }
+        created_at: { $ref: '#/components/schemas/Timestamp' }
+security:
+  - BearerAuth: []
+paths:
+  /auth/wa/start:
+    post:
+      tags: [Auth]
+      summary: Start WhatsApp verification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone: { type: string }
+              required: [phone]
+      responses:
+        '200':
+          description: Issued one-time code and wa.me link
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id: { $ref: '#/components/schemas/Id' }
+                  wa_deeplink: { type: string }
+                  expires_in_sec: { type: integer }
+  /auth/wa/verify:
+    post:
+      tags: [Auth]
+      summary: Verify WhatsApp one-time code and mint JWT
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session_id: { $ref: '#/components/schemas/Id' }
+                code: { type: string }
+              required: [session_id, code]
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  refresh_token: { type: string }
+                  user: { $ref: '#/components/schemas/User' }
+  /lists:
+    post:
+      tags: [Consumer]
+      summary: Create grocery list (raw text or structured items)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    title: { type: string }
+                    raw_text: { type: string }
+                    notes: { type: string, nullable: true }
+                  required: [raw_text]
+                - type: object
+                  properties:
+                    title: { type: string }
+                    items:
+                      type: array
+                      items: { $ref: '#/components/schemas/GroceryListItem' }
+                    notes: { type: string, nullable: true }
+                  required: [items]
+      responses:
+        '201':
+          description: Created list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GroceryList' }
+  /lists/{id}/request-quotes:
+    post:
+      tags: [Consumer]
+      summary: Request quotes from merchants
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                merchant_ids:
+                  type: array
+                  items: { $ref: '#/components/schemas/Id' }
+              required: [merchant_ids]
+      responses:
+        '202': { description: Quote requests dispatched }
+  /lists/{id}/quotes:
+    get:
+      tags: [Consumer]
+      summary: Get quotes for a list
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: Quotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Quote' }
+  /quotes/{id}/accept:
+    post:
+      tags: [Consumer]
+      summary: Accept a quote and create order
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+  /orders:
+    get:
+      tags: [Consumer]
+      summary: List user orders
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Order' }
+  /orders/{id}:
+    get:
+      tags: [Consumer]
+      summary: Get order by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200':
+          description: Order
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Order' }
+  /orders/{id}/review:
+    post:
+      tags: [Consumer]
+      summary: Submit review for an order
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                rating: { type: integer, minimum: 1, maximum: 5 }
+                tags:
+                  type: array
+                  items: { type: string }
+              required: [rating]
+      responses:
+        '201': { description: Review submitted }
+  /orders/{id}/dispute:
+    post:
+      tags: [Consumer]
+      summary: Raise a dispute for an order
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+                details: { type: string }
+              required: [reason]
+      responses:
+        '201': { description: Dispute created }
+  /merchant/quotes:
+    get:
+      tags: [Merchant]
+      summary: Get merchant quotes by status
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [pending, sent] }
+      responses:
+        '200':
+          description: Quotes
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Quote' }
+  /merchant/quotes/{id}:
+    post:
+      tags: [Merchant]
+      summary: Submit or update a quote
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                quote_json:
+                  type: array
+                  items: { $ref: '#/components/schemas/QuoteLine' }
+                delivery_fee: { type: number }
+                eta_minutes: { type: integer }
+              required: [quote_json, delivery_fee, eta_minutes]
+      responses:
+        '200': { description: Quote saved }
+  /merchant/orders/{id}/status:
+    post:
+      tags: [Merchant]
+      summary: Update order status
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status: { type: string, enum: [preparing, out_for_delivery, delivered] }
+              required: [status]
+      responses:
+        '200': { description: Status updated }
+  /merchant/orders/{id}/proof:
+    post:
+      tags: [Merchant]
+      summary: Upload delivery proof image (S3 presign flow suggested)
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200': { description: Proof recorded }
+  /merchant/catalog/{item_id}:
+    put:
+      tags: [Merchant]
+      summary: Update catalog item
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: item_id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                price_per_unit: { type: number }
+                in_stock: { type: boolean }
+      responses:
+        '200': { description: Item updated }
+  /admin/kyc/pending:
+    get:
+      tags: [Admin]
+      summary: List pending merchant KYCs
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: List of merchant applications }
+  /admin/kyc/{merchant_id}/approve:
+    post:
+      tags: [Admin]
+      summary: Approve merchant KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: merchant_id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200': { description: Approved }
+  /admin/kyc/{merchant_id}/reject:
+    post:
+      tags: [Admin]
+      summary: Reject merchant KYC
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: merchant_id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string }
+              required: [reason]
+      responses:
+        '200': { description: Rejected }
+  /admin/moderation/reviews:
+    get:
+      tags: [Admin]
+      summary: List reported reviews
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: Moderation queue }
+  /admin/reviews/{id}/hide:
+    post:
+      tags: [Admin]
+      summary: Hide a review
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200': { description: Hidden }
+  /admin/reviews/{id}/restore:
+    post:
+      tags: [Admin]
+      summary: Restore a review
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      responses:
+        '200': { description: Restored }
+  /admin/disputes:
+    get:
+      tags: [Admin]
+      summary: List disputes
+      security:
+        - BearerAuth: []
+      responses:
+        '200': { description: Disputes list }
+  /admin/disputes/{id}/resolve:
+    post:
+      tags: [Admin]
+      summary: Resolve dispute
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resolution: { type: string, enum: [refund_recommended, merchant_warning, dismissed] }
+              required: [resolution]
+      responses:
+        '200': { description: Resolved }
+  /merchant/{id}/rating:
+    get:
+      tags: [Ratings]
+      summary: Get 90-day rolling rating
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { $ref: '#/components/schemas/Id' }
+        - in: query
+          name: window
+          schema: { type: string, example: 90d }
+      responses:
+        '200':
+          description: Rating value
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rating: { type: number }
+                  window_days: { type: integer }
+
