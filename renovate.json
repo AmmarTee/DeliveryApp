@@ -1,24 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended",
-    ":semanticCommits",
-    ":separateMajorReleases",
-    ":enableVulnerabilityAlerts"
-  ],
+  "extends": ["config:recommended"],
   "timezone": "Asia/Karachi",
-  "schedule": ["before 5am on monday"],
+  "schedule": ["after 02:00 and before 06:00 on Sunday"],
   "rangeStrategy": "bump",
+  "semanticCommits": "enabled",
   "packageRules": [
-    {
-      "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "automergeType": "pr"
-    },
-    {
-      "matchUpdateTypes": ["major"],
-      "automerge": false
-    }
+    { "matchManagers": ["npm"], "matchUpdateTypes": ["patch", "minor"], "automerge": true },
+    { "matchManagers": ["pip_requirements", "poetry"], "matchUpdateTypes": ["patch", "minor"], "automerge": true },
+    { "matchManagers": ["dockerfile"], "matchUpdateTypes": ["patch"], "automerge": true }
   ]
 }
-

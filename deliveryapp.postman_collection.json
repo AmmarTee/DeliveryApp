@@ -1,0 +1,7 @@
+{
+  "info": {"name": "DeliveryApp", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "item": [
+    {"name": "Auth Start", "request": {"method": "POST", "url": "{{api}}/auth/wa/start", "body": {"mode": "raw", "raw": "{\n  \"phone\": \"923001112223\"\n}"}}},
+    {"name": "Auth Verify", "request": {"method": "POST", "url": "{{api}}/auth/wa/verify", "body": {"mode": "raw", "raw": "{\n  \"phone\": \"923001112223\",\n  \"code\": \"123456\"\n}"}}}
+  ]
+}
