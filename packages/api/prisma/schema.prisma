@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id      String   @id @default(uuid())
+  phone   String   @unique
+  name    String?
+  lists   GroceryList[]
+  createdAt DateTime @default(now())
+}
+
+model Merchant {
+  id      String @id @default(uuid())
+  name    String
+  rating  Float  @default(0)
+  quotes  Quote[]
+  createdAt DateTime @default(now())
+}
+
+model GroceryList {
+  id       String @id @default(uuid())
+  user     User   @relation(fields: [userId], references: [id])
+  userId   String
+  rawText  String?
+  quotes   Quote[]
+  createdAt DateTime @default(now())
+}
+
+model Quote {
+  id         String @id @default(uuid())
+  list       GroceryList @relation(fields: [listId], references: [id])
+  listId     String
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  merchantId String
+  total      Float
+  status     String @default("pending")
+  order      Order?
+  createdAt  DateTime @default(now())
+}
+
+model Order {
+  id        String @id @default(uuid())
+  quote     Quote  @relation(fields: [quoteId], references: [id])
+  quoteId   String
+  status    String @default("pending")
+  review    Review?
+  createdAt DateTime @default(now())
+}
+
+model Review {
+  id        String @id @default(uuid())
+  order     Order  @relation(fields: [orderId], references: [id])
+  orderId   String
+  rating    Int
+  createdAt DateTime @default(now())
+}

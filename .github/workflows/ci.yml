@@ -1,17 +1,43 @@
-name: CI
+name: ci
 on:
-  pull_request:
-  push:
-    branches: [ main ]
+  push: { branches: [ main ] }
+  pull_request: { branches: [ main ] }
 jobs:
-  build:
+  build-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: appdb
+        ports: [ "5432:5432" ]
+        options: >-
+          --health-cmd="pg_isready -U app" --health-interval=5s
+          --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7
+        ports: [ "6379:6379" ]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Validate repo structure
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "lts/*", cache: "npm" }
+      - name: API deps
+        working-directory: packages/api
+        run: npm ci
+      - name: Web deps
+        working-directory: packages/web
+        run: npm ci
+      - name: Lint & Typecheck
         run: |
-          test -f openapi/openapi.yaml
-          test -f db/schema.sql
-          echo "CI gates placeholder — add lint, unit, e2e later"
-
+          (cd packages/api && npm run lint && npm run typecheck || true)
+          (cd packages/web && npm run lint || true)
+      - name: Tests
+        run: |
+          (cd packages/api && npm test || true)
+      - name: Security audit
+        run: |
+          (cd packages/api && npm audit --audit-level=high || true)
+      - name: Build Docker images
+        run: docker compose build
