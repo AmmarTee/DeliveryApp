@@ -90,4 +90,3 @@ CREATE TABLE audit_logs (
   metadata JSONB,
   created_at TIMESTAMPTZ DEFAULT now()
 );
-
