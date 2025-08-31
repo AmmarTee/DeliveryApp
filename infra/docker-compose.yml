@@ -23,6 +23,7 @@ services:
       - DATABASE_URL=${DATABASE_URL}
       - REDIS_URL=${REDIS_URL}
       - JWT_SECRET=${JWT_SECRET}
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/seed.js && node dist/server.js"]
     depends_on:
       db:
         condition: service_healthy
