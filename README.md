@@ -6,6 +6,7 @@ Phase 1 MVP with simple customer and merchant dashboards.
 - Email/password login or signup with customer or merchant role.
 - Customers select items from dropdown menus and broadcast orders to merchants.
 
+
 ## Development
 
 ```bash

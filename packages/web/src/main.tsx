@@ -101,6 +101,7 @@ function App() {
             {mode === 'login' ? 'Sign Up' : 'Login'}
           </a>
         </p>
+
       </form>
     );
   }
@@ -202,4 +203,3 @@ function Merchant() {
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <App />
 );
-
