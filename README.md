@@ -1,25 +1,19 @@
 # DeliveryApp
 
-Phase 1 MVP with simple customer and merchant dashboards.
-
-## Features
-- Email/password login or signup with customer or merchant role.
-- Customers select items from dropdown menus and broadcast orders to merchants.
-
+MVP marketplace for customers to request groceries from nearby merchants.
 
 ## Development
 
 ```bash
-cd packages/web
-npm install
-npm run dev
-# app available at http://localhost:3000
+cd infra
+cp .env.example .env
+# fill values if needed
+docker compose up --build
 ```
 
 ## Testing
 
 ```bash
-cd packages/web && npm run lint
-cd packages/web && npm run build
+cd web && npm run build
 cd packages/nlp && pytest
 ```
