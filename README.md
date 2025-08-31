@@ -1,23 +1,26 @@
 # DeliveryApp
 
-Direct-to-merchant ordering platform MVP for Pakistan.
+Phase 1 MVP with simple customer and merchant dashboards.
 
-## Quickstart
+## Features
+- Email/password account creation with customer or merchant role.
+- Navigation bar for Categories, Orders and Payments sections.
+- Customers choose items from dropdown menus and send orders.
+- Orders broadcast in real time to the merchant dashboard and stored locally with totals.
+- Data persists via browser localStorage and Docker volumes for backend services.
+
+## Development
 
 ```bash
-cp .env.example .env
-make up
-make db.migrate
-make db.seed
+docker-compose build
+docker-compose up -d web
+# app available at http://localhost:3000
 ```
 
-- Web: http://localhost:5173
-- API: http://localhost:8080/health
+## Testing
 
-## Overview
-- Backend API: NestJS + Prisma + PostgreSQL + Redis
-- Web PWA: React + Vite + TypeScript
-- NLP Service: FastAPI for grocery list parsing
-- Object Storage: MinIO (S3 compatible)
-
-All services run via `docker-compose` with no external dependencies.
+```bash
+docker-compose run --rm web npm run lint
+docker-compose run --rm web npm run build
+docker-compose run --rm nlp pytest
+```
