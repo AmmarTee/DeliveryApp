@@ -13,55 +13,19 @@ interface Account {
 interface Item {
   id: string;
   name: string;
-  price: number;
-  category: string;
 }
 
 const ITEMS: Item[] = [
-  { id: 'coffee', name: 'Coffee', price: 3, category: 'Beverages' },
-  { id: 'tea', name: 'Tea', price: 2, category: 'Beverages' },
-  { id: 'sandwich', name: 'Sandwich', price: 5, category: 'Food' },
-  { id: 'cake', name: 'Cake', price: 4, category: 'Food' },
+  { id: 'coffee', name: 'Coffee' },
+  { id: 'tea', name: 'Tea' },
+  { id: 'sandwich', name: 'Sandwich' },
+  { id: 'cake', name: 'Cake' },
 ];
-
-interface OrderItem {
-  item: Item;
-  quantity: number;
-}
-
-interface Order {
-  id: number;
-  items: OrderItem[];
-  total: number;
-}
 
 const channel = new BroadcastChannel('orders');
 
-function loadAccounts(): Account[] {
-  try {
-    return JSON.parse(localStorage.getItem('accounts') || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveAccounts(accounts: Account[]) {
-  localStorage.setItem('accounts', JSON.stringify(accounts));
-}
-
-function loadOrders(): Order[] {
-  try {
-    return JSON.parse(localStorage.getItem('orders') || '[]');
-  } catch {
-    return [];
-  }
-}
-
-function saveOrders(orders: Order[]) {
-  localStorage.setItem('orders', JSON.stringify(orders));
-}
-
 function App() {
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [account, setAccount] = useState<Account | null>(null);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -70,25 +34,23 @@ function App() {
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const accounts = loadAccounts();
     if (mode === 'signup') {
       if (accounts.find((a) => a.email === email)) {
         alert('Account exists');
         return;
       }
-      const newAcc = { email, password, role };
-      accounts.push(newAcc);
-      saveAccounts(accounts);
-      setAccount(newAcc);
+      const acc = { email, password, role };
+      setAccounts([...accounts, acc]);
+      setAccount(acc);
     } else {
-      const found = accounts.find(
+      const acc = accounts.find(
         (a) => a.email === email && a.password === password
       );
-      if (!found) {
+      if (!acc) {
         alert('Invalid credentials');
         return;
       }
-      setAccount(found);
+      setAccount(acc);
     }
   };
 
@@ -130,112 +92,41 @@ function App() {
             </label>
           </div>
         )}
-        <button type="submit">{mode === 'login' ? 'Login' : 'Sign Up'}</button>
+        <button type="submit">
+          {mode === 'login' ? 'Login' : 'Sign Up'}
+        </button>
         <p>
-          {mode === 'login' ? (
-            <span>
-              No account? <a onClick={() => setMode('signup')}>Create one</a>
-            </span>
-          ) : (
-            <span>
-              Have an account? <a onClick={() => setMode('login')}>Login</a>
-            </span>
-          )}
+          {mode === 'login' ? 'Need an account?' : 'Have an account?'}{' '}
+          <a href="#" onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}>
+            {mode === 'login' ? 'Sign Up' : 'Login'}
+          </a>
         </p>
       </form>
     );
   }
 
-  return <Dashboard account={account} logout={() => setAccount(null)} />;
+  return account.role === 'customer' ? <Customer /> : <Merchant />;
 }
 
-function Dashboard({
-  account,
-  logout,
-}: {
-  account: Account;
-  logout: () => void;
-}) {
-  const [section, setSection] = useState<'categories' | 'orders' | 'payments'>(
-    'orders'
-  );
-  return (
-    <div dir="auto">
-      <nav>
-        <button
-          className={section === 'categories' ? 'active' : ''}
-          onClick={() => setSection('categories')}
-        >
-          Categories
-        </button>
-        <button
-          className={section === 'orders' ? 'active' : ''}
-          onClick={() => setSection('orders')}
-        >
-          Orders
-        </button>
-        <button
-          className={section === 'payments' ? 'active' : ''}
-          onClick={() => setSection('payments')}
-        >
-          Payments
-        </button>
-        <span className="spacer" />
-        <button onClick={logout}>Logout</button>
-      </nav>
-      {section === 'categories' && <Categories />}
-      {section === 'orders' && account.role === 'customer' && <CustomerOrders />}
-      {section === 'orders' && account.role === 'merchant' && <MerchantOrders />}
-      {section === 'payments' && <div className="placeholder">Payments coming soon</div>}
-    </div>
-  );
+interface OrderItem {
+  id: string;
+  qty: number;
 }
 
-function Categories() {
-  const grouped = ITEMS.reduce<Record<string, Item[]>>((acc, item) => {
-    (acc[item.category] ||= []).push(item);
-    return acc;
-  }, {});
-  return (
-    <div className="categories">
-      {Object.entries(grouped).map(([cat, list]) => (
-        <div key={cat}>
-          <h2>{cat}</h2>
-          <ul>
-            {list.map((i) => (
-              <li key={i.id}>
-                {i.name} - ${i.price}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CustomerOrders() {
+function Customer() {
   const [selected, setSelected] = useState<string>(ITEMS[0].id);
   const [qty, setQty] = useState(1);
   const [items, setItems] = useState<OrderItem[]>([]);
 
   const addItem = (e: React.FormEvent) => {
     e.preventDefault();
-    const item = ITEMS.find((i) => i.id === selected)!;
-    setItems((prev) => [...prev, { item, quantity: qty }]);
+    setItems([...items, { id: selected, qty }]);
     setQty(1);
   };
 
-  const submitOrder = () => {
+  const send = () => {
     if (!items.length) return;
-    const total = items.reduce(
-      (s, it) => s + it.item.price * it.quantity,
-      0
-    );
-    const order: Order = { id: Date.now(), items, total };
-    const existing = loadOrders();
-    saveOrders([...existing, order]);
-    channel.postMessage(order);
+    channel.postMessage({ id: Date.now(), items });
     setItems([]);
     alert('Order sent');
   };
@@ -247,7 +138,7 @@ function CustomerOrders() {
         <select value={selected} onChange={(e) => setSelected(e.target.value)}>
           {ITEMS.map((i) => (
             <option key={i.id} value={i.id}>
-              {i.name} (${i.price})
+              {i.name}
             </option>
           ))}
         </select>
@@ -261,46 +152,31 @@ function CustomerOrders() {
       </form>
       {items.length > 0 && (
         <>
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Qty</th>
-                <th>Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((it, idx) => (
-                <tr key={idx}>
-                  <td>{it.item.name}</td>
-                  <td>{it.quantity}</td>
-                  <td>${it.item.price * it.quantity}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="total">
-            Total: $
-            {items.reduce((s, it) => s + it.item.price * it.quantity, 0)}
-          </p>
-          <button onClick={submitOrder}>Send Order</button>
+          <ul>
+            {items.map((it, idx) => (
+              <li key={idx}>
+                {it.qty} x {ITEMS.find((i) => i.id === it.id)!.name}
+              </li>
+            ))}
+          </ul>
+          <button onClick={send}>Send Order</button>
         </>
       )}
     </div>
   );
 }
 
-function MerchantOrders() {
-  const [orders, setOrders] = useState<Order[]>(() => loadOrders());
+interface Order {
+  id: number;
+  items: OrderItem[];
+}
+
+function Merchant() {
+  const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
     channel.onmessage = (e) => {
-      const order = e.data as Order;
-      setOrders((prev) => {
-        const next = [...prev, order];
-        saveOrders(next);
-        return next;
-      });
+      setOrders((o) => [...o, e.data as Order]);
     };
   }, []);
 
@@ -313,11 +189,10 @@ function MerchantOrders() {
           <ul>
             {o.items.map((it, i) => (
               <li key={i}>
-                {it.quantity} x {it.item.name} (${it.item.price})
+                {it.qty} x {ITEMS.find((x) => x.id === it.id)!.name}
               </li>
             ))}
           </ul>
-          <strong>Total: ${o.total}</strong>
         </div>
       ))}
     </div>
@@ -327,3 +202,4 @@ function MerchantOrders() {
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <App />
 );
+
