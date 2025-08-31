@@ -10,15 +10,6 @@ const channel = new BroadcastChannel('orders');
 
 type Role = 'customer' | 'merchant' | null;
 
-type Role = 'customer' | 'merchant';
-
-interface Order {
-  id: number;
-  item: string;
-}
-
-const orderChannel = new BroadcastChannel('orders');
-
 function App() {
   const [role, setRole] = useState<Role>(null);
   const [text, setText] = useState('');
@@ -60,7 +51,6 @@ function App() {
           onChange={(e) => setText(e.target.value)}
         />
         <button type="submit">Send</button>
-
       </form>
     );
   }
