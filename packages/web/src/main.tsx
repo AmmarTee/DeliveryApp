@@ -1,6 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
-import './i18n/index.ts';
+
+interface Order {
+  id: number;
+  items: string[];
+}
+
+const channel = new BroadcastChannel('orders');
+
+type Role = 'customer' | 'merchant' | null;
 
 type Role = 'customer' | 'merchant';
 
@@ -12,80 +20,61 @@ interface Order {
 const orderChannel = new BroadcastChannel('orders');
 
 function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [role, setRole] = useState<Role>('customer');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [item, setItem] = useState('');
+  const [role, setRole] = useState<Role>(null);
+  const [text, setText] = useState('');
   const [orders, setOrders] = useState<Order[]>([]);
 
   useEffect(() => {
-    orderChannel.onmessage = (e) => {
+    channel.onmessage = (e) => {
       setOrders((prev) => [...prev, e.data as Order]);
     };
   }, []);
 
-  const login = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email && password) {
-      setLoggedIn(true);
-    }
-  };
-
-  const sendOrder = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!item) return;
-    const newOrder = { id: Date.now(), item };
-    orderChannel.postMessage(newOrder);
-    setItem('');
-  };
-
-  if (!loggedIn) {
+  if (role === null) {
     return (
-      <form onSubmit={login} dir="auto">
-        <h1>Login</h1>
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
-          <option value="customer">Customer</option>
-          <option value="merchant">Merchant</option>
-        </select>
-        <button type="submit">Login</button>
-      </form>
+      <div dir="auto">
+        <button onClick={() => setRole('customer')}>Customer</button>
+        <button onClick={() => setRole('merchant')}>Merchant</button>
+      </div>
     );
   }
 
   if (role === 'customer') {
+    const submit = (e: React.FormEvent) => {
+      e.preventDefault();
+      const items = text
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (!items.length) return;
+      channel.postMessage({ id: Date.now(), items });
+      setText('');
+    };
+
     return (
-      <form onSubmit={sendOrder} dir="auto">
-        <h1>Customer Dashboard</h1>
-        <input
-          placeholder="Order item"
-          value={item}
-          onChange={(e) => setItem(e.target.value)}
+      <form onSubmit={submit} dir="auto">
+        <h1>Customer</h1>
+        <textarea
+          placeholder="One item per line"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
         />
-        <button type="submit">Send Order</button>
+        <button type="submit">Send</button>
+
       </form>
     );
   }
 
   return (
     <div dir="auto">
-      <h1>Merchant Dashboard</h1>
-      <ul>
-        {orders.map((o) => (
-          <li key={o.id}>{o.item}</li>
-        ))}
-      </ul>
+      <h1>Merchant</h1>
+      {orders.map((o) => (
+        <ul key={o.id}>
+          {o.items.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+      ))}
     </div>
   );
 }
@@ -93,4 +82,3 @@ function App() {
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <App />
 );
-
