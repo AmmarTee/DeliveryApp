@@ -1,5 +1,4 @@
 # AGENTS
-
 ## Testing
 Run these commands before committing changes:
 
@@ -8,4 +7,4 @@ Run these commands before committing changes:
 - `cd packages/nlp && pytest`
 
 ## Notes
-- Use Node.js tooling; do not rely on Docker for development or tests.
+- Keep the project simple and avoid Docker-based workflows.
