@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String?
+  role      Role
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  addresses Address[]
+  merchant  Merchant?
+  requests  Request[] @relation("UserRequests")
+}
+
+enum Role {
+  CUSTOMER
+  MERCHANT
+  ADMIN
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  line      String
+  city      String
+  lat       Float
+  lng       Float
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  requests  Request[]
+}
+
+model Merchant {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  shopName     String
+  isOpen       Boolean  @default(true)
+  minOrder     Int      @default(0)
+  radiusKm     Int      @default(5)
+  ratingAvg    Float    @default(0)
+  ratingCount  Int      @default(0)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id])
+  offers       Offer[]
+}
+
+model Request {
+  id           String    @id @default(cuid())
+  customerId   String
+  addressId    String
+  itemsJson    Json
+  note         String?
+  status       ReqStatus @default(PENDING)
+  etaMinutes   Int?
+  serviceFeePc Int       @default(5)
+  createdAt    DateTime  @default(now())
+  acceptedAt   DateTime?
+  customer     User      @relation("UserRequests", fields: [customerId], references: [id])
+  address      Address   @relation(fields: [addressId], references: [id])
+  offers       Offer[]
+  rating       Rating?
+}
+
+enum ReqStatus {
+  PENDING
+  ACCEPTED
+  DISPATCHED
+  DELIVERED
+  CANCELED
+}
+
+model Offer {
+  id         String    @id @default(cuid())
+  requestId  String
+  merchantId String
+  fee        Int
+  minutes    Int
+  status     OfferStatus @default(PASSED)
+  createdAt  DateTime @default(now())
+  request    Request  @relation(fields: [requestId], references: [id])
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+}
+
+enum OfferStatus {
+  PASSED
+  ACCEPTED
+}
+
+model Rating {
+  id         String   @id @default(cuid())
+  requestId  String   @unique
+  customerId String
+  merchantId String
+  stars      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+  request    Request  @relation(fields: [requestId], references: [id])
+}
