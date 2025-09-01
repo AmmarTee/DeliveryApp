@@ -17,7 +17,6 @@ model User {
   updatedAt DateTime @updatedAt
   addresses Address[]
   merchant  Merchant?
-  requests  Request[] @relation("UserRequests")
 }
 
 enum Role {
@@ -35,7 +34,6 @@ model Address {
   lng       Float
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
-  requests  Request[]
 }
 
 model Merchant {
@@ -63,7 +61,7 @@ model Request {
   serviceFeePc Int       @default(5)
   createdAt    DateTime  @default(now())
   acceptedAt   DateTime?
-  customer     User      @relation("UserRequests", fields: [customerId], references: [id])
+  customer     User      @relation(fields: [customerId], references: [id])
   address      Address   @relation(fields: [addressId], references: [id])
   offers       Offer[]
   rating       Rating?

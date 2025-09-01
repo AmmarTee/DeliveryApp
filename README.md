@@ -1,19 +1,21 @@
-# DeliveryApp
+# Delivery App MVP
 
-MVP marketplace for customers to request groceries from nearby merchants.
+Quick start
 
-## Development
+1. Create env file
+2. Build and run with Docker
+3. Run database migration and seed
 
-```bash
+Commands
+
 cd infra
 cp .env.example .env
-# fill values if needed
-docker compose up --build
-```
+# edit values
+docker compose up --build -d
 
-## Testing
+# In another terminal run migrations and seed
+docker compose exec api npx prisma migrate deploy
+docker compose exec api node dist/seed.js
 
-```bash
-cd web && npm run build
-cd packages/nlp && pytest
-```
+Web is at http://localhost:5173
+API is at http://localhost:8080

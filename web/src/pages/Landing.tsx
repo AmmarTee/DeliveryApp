@@ -6,11 +6,7 @@ export default function Landing() {
   const [sent, setSent] = useState(false);
 
   async function submit() {
-    await fetch(`${import.meta.env.VITE_API_URL}/auth/start`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone })
-    });
+    await fetch(`/api/auth/start`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone }) });
     setSent(true);
   }
 
